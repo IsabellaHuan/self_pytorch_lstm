@@ -184,13 +184,28 @@ HIDDEN_DIM = 4
 #     "B I O O O O B".split()
 # )]
 
-training_data = [(
-    "黄 焖 鸡 米 饭 大 份".split(),
-    "T T T T T F F".split()
-), (
-    "黄 焖 鸡 米 饭 小 份".split(),
-    "T T T T T F F".split()
-)]
+# 更换为traindata 文件
+# training_data = [(
+#     "黄 焖 鸡 米 饭 大 份".split(),
+#     "T T T T T F F".split()
+# ), (
+#     "黄 焖 鸡 米 饭 小 份".split(),
+#     "T T T T T F F".split()
+# )]
+
+training_data=[]
+word_list=[]
+for line in open('./train_data.txt','r'):
+    if line == '\n':
+        title_word_list = map(lambda x:x[0],word_list)
+        title_tag_list = map(lambda x:x[1],word_list)
+        training_data.append((title_word_list,title_tag_list))
+        word_list=[]
+    else:
+        content = line.replace('\n','').split('\t')
+        word_list.append(content)
+
+training_data=training_data[:100]
 
 word_to_ix = {}
 for sentence, tags in training_data:
@@ -202,17 +217,17 @@ for sentence, tags in training_data:
 tag_to_ix = {"F": 0, "T": 1, START_TAG: 2, STOP_TAG: 3}
 
 model = BiLSTM_CRF(len(word_to_ix), tag_to_ix, EMBEDDING_DIM, HIDDEN_DIM)
-optimizer = optim.SGD(model.parameters(), lr=0.01, weight_decay=1e-4)
+optimizer = optim.SGD(model.parameters(), lr=0.1, weight_decay=1e-4)
 
 # Check predictions before training
 with torch.no_grad():
     precheck_sent = prepare_sequence(training_data[0][0], word_to_ix)
-    precheck_tags = torch.tensor([tag_to_ix[t] for t in training_data[0][1]], dtype=torch.long)
+    # precheck_tags = torch.tensor([tag_to_ix[t] for t in training_data[0][1]], dtype=torch.long)
     print(model(precheck_sent))
 
 # Make sure prepare_sequence from earlier in the LSTM section is loaded
 for epoch in range(
-        300):  # again, normally you would NOT do 300 epochs, it is toy data
+        10):  # again, normally you would NOT do 300 epochs, it is toy data
     for sentence, tags in training_data:
         # Step 1. Remember that Pytorch accumulates gradients.
         # We need to clear them out before each instance
@@ -225,12 +240,18 @@ for epoch in range(
 
         # Step 3. Run our forward pass.
         loss = model.neg_log_likelihood(sentence_in, targets)
+        print loss
 
         # Step 4. Compute the loss, gradients, and update the parameters by
         # calling optimizer.step()
         loss.backward()
         optimizer.step()
 
+import pickle
+model_save_file = open('./model_save_file.plk','wb')
+pickle.dump(model,model_save_file)
+pickle.dump(word_to_ix,model_save_file)
+pickle.dump(word_to_ix,model_save_file)
 # Check predictions after training
 with torch.no_grad():
     precheck_sent = prepare_sequence(training_data[0][0], word_to_ix)
